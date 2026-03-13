@@ -8,9 +8,9 @@ class sender(threading.Thread):
     def __init__(self, node):
         super().__init__()
         self.node = node
-        
-    def run():
-        pass
+
+    def run(self):
+        print("Sender thread started successfully.")
 
     def send_to_STDOUT():
         pass

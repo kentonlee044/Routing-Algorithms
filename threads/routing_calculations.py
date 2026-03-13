@@ -7,9 +7,9 @@ class routing_calculations(threading.Thread):
     def __init__(self, node):
         super().__init__()
         self.node = node
-        
-    def run():
-        pass
+
+    def run(self):
+        print("Routing thread started successfully.")
 
     '''
     Takes some the graph from a node?
