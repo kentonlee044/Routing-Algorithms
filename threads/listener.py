@@ -9,8 +9,8 @@ class listener(threading.Thread):
     '''
     Thread should be running over this function listening for input and calling handle_update() before calling forward_update() to send the update packets to the routing calculations thread
     '''
-    def run():
-        pass
+    def run(self):
+        print("Listener thread started successfully.")
 
     '''
     sends the formatted command to the routing thread
