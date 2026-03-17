@@ -1,5 +1,10 @@
 import threading
 import node
+import select
+import sys
+import time
+from commands.command_types import command_types
+from commands.dynamic_commands import UpdateCommand, ChangeCommand, FailCommand, RecoverCommand, QueryCommand, QueryPathCommand, ResetCommand, BatchUpdateCommand
 
 class listener(threading.Thread):
     
@@ -14,21 +19,71 @@ class listener(threading.Thread):
     - needs to call accept_neighbours()
     '''
     def run(self):
+        
         print("Listener thread started successfully.")
-        # TODO - 1. call node's accept_neighbours() function to accept incoming connections from neighbours and test it (This should loop until all neighbours have been connected to meaning that we won't need to accept from neighbours again after this)
-        # TODO - 2. start a while loop to listen for updates from neighbours and call handle_update() to update the graph and then call forward_update() to send the update packets to the routing calculations thread
-        # TODO - 3. need to also listen for updates from STDIN and call handle_update() to update the graph and then call forward_update() to send the update packets to the routing calculations thread
-        # TODO - 4. need to figure out how to do both 2 and 3 at the same time because calling one will block the other, maybe we can use select to listen for both at the same time? or maybe use the timeout parameter of the socket to periodically check for updates from STDIN?
+        self.node.server_socket.settimeout(1) 
+        self.node.accept_connections()
 
-        ## If i need to use the listener thread to forward update packets to the routing calculations thread do i need to get an instance of the sender thread or can i just create a method that sends the packets directly to the routing calculations thread but this might go against the idea of 'listener' thread. Or what other options do i have for sending the update packets to the routing calculations thread? Maybe we can use a queue to send the packets from the listener thread to the routing calculations thread?
-    '''
-    sends the formatted command to the routing thread
-    '''
-    def handle_update(self):
-        pass
+        while True:
+            listen_list = list(self.node.neighbour_sockets.values())
+            listen_list.append(sys.stdin)
+
+            messages, _, _ = select.select(listen_list, [], [])
+
+            for message in messages:
+                if message == sys.stdin:
+                    line = sys.stdin.readline().strip()
+                    if line:
+                        self.handle_stdin(line)
+                        self.node.last_command = line
+                        self.has_new_update = True
+                
+                # Receive messages from neighbour sockets
+                else:
+                    try:
+                            
+                        data = message.recv(1024).decode().strip()
+                        if data:
+                            self.handle_packet(data)
+                            self.node.last_command = data
+                            self.has_new_update = True
+                        else:
+                            print("ERROR: Neighbour socket closed.")
+                            time.sleep(5)
+                    except Exception as e:
+                        print(f"Error receiving from neighbour socket: {e}")
+                        time.sleep(3)
+                print(f"last command: {self.node.last_command}")
 
     '''
-    Parses the command from STDIN into a ready and usable format
+    Takes in the command from STDIN and compares the command to the expected command and computes expected outcome
     '''
-    def read_command(self):
-        pass
+    def handle_stdin(self, data: str) -> None:
+        # TODO need to find how to implement with QUERY PATH and BATCH UPDATE commands as they have two words in the command type but we can just split the command and then check the first word to determine the command type and then check the second word if needed for QUERY PATH and BATCH UPDATE
+        if len(data) <= 2:
+            print(f"Invalid command: {data}")
+            sys.exit(1)
+        separated_data = data.split(" ", 1)
+        command = separated_data[0]
+        args = separated_data[1]
+
+        get_command = command_types.get(command)
+        if get_command:
+            get_command(self.node).execute(args)
+        else:
+            # TODO need to setup error handling for each command type
+            print(f"Invalid command: {command}")
+
+    '''
+    Handle update packets from other nodes by reading data and updating the graph accordingly. A sending thread only sends packets to their direct neighbours so no need to continue forwarding this
+    '''
+    def handle_packet(self, packet: str) -> None:
+        # TODO add error handling
+        separated_data = packet.split(" ", 1)
+        command = separated_data[0]
+        args = separated_data[1] 
+
+        if command != "UPDATE":
+            print(f"Error: Invalid update packet format.")
+            return
+        UpdateCommand(self.node).execute(args)
