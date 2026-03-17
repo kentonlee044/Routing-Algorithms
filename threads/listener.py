@@ -1,7 +1,7 @@
 import threading
 import node
 import select
-import sys
+import sys, os
 import time
 from commands.command_types import command_types
 from commands.dynamic_commands import UpdateCommand, ChangeCommand, FailCommand, RecoverCommand, QueryCommand, QueryPathCommand, ResetCommand, BatchUpdateCommand
@@ -35,8 +35,6 @@ class listener(threading.Thread):
                     line = sys.stdin.readline().strip()
                     if line:
                         self.handle_stdin(line)
-                        self.node.last_command = line
-                        self.has_new_update = True
                 
                 # Receive messages from neighbour sockets
                 else:
@@ -45,40 +43,52 @@ class listener(threading.Thread):
                         data = message.recv(1024).decode().strip()
                         if data:
                             self.handle_packet(data)
-                            self.node.last_command = data
-                            self.has_new_update = True
+                            
                         else:
                             print("ERROR: Neighbour socket closed.")
                             time.sleep(5)
                     except Exception as e:
                         print(f"Error receiving from neighbour socket: {e}")
                         time.sleep(3)
-                print(f"last command: {self.node.last_command}")
 
     '''
     Takes in the command from STDIN and compares the command to the expected command and computes expected outcome
     '''
     def handle_stdin(self, data: str) -> None:
         # TODO need to find how to implement with QUERY PATH and BATCH UPDATE commands as they have two words in the command type but we can just split the command and then check the first word to determine the command type and then check the second word if needed for QUERY PATH and BATCH UPDATE
-        if len(data) <= 2:
-            print(f"Invalid command: {data}")
-            sys.exit(1)
+        
         separated_data = data.split(" ", 1)
         command = separated_data[0]
+        if len(separated_data) < 2:
+            print(f"Invalid command: {data}")
+            os._exit(1)
+
         args = separated_data[1]
 
         get_command = command_types.get(command)
         if get_command:
             get_command(self.node).execute(args)
+            if command == "UPDATE":
+                with self.node.update_lock:
+                    if self.node.last_update_command != data:
+                        self.node.last_update_command = data
+                        self.node.has_new_update = True
+        
         else:
             # TODO need to setup error handling for each command type
             print(f"Invalid command: {command}")
+            os._exit(1)
 
     '''
     Handle update packets from other nodes by reading data and updating the graph accordingly. A sending thread only sends packets to their direct neighbours so no need to continue forwarding this
     '''
     def handle_packet(self, packet: str) -> None:
         # TODO add error handling
+
+        if len(packet) < 2: # incorrect error handle 
+            print(f"Error: Invalid packet format.")
+            return
+        print(f"Received packet from socket: {packet}")
         separated_data = packet.split(" ", 1)
         command = separated_data[0]
         args = separated_data[1] 

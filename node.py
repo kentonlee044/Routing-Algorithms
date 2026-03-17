@@ -2,7 +2,8 @@ from typing import List, Dict
 import time
 import socket
 import queue
-import sys
+import sys, os
+import threading
 
 class node: 
     
@@ -21,8 +22,9 @@ class node:
         self.firstCall = True
         self.num_neighbours: int = 0
         self.queue = queue.Queue()  # thread safe queue for communication between threads
-        self.last_command: str = None
+        self.last_update_command: str = None
         self.has_new_update: bool = False
+        self.update_lock = threading.Lock()
         self.neighbours: Dict[str, Dict[str, int]] = {}
         self.neighbour_sockets: Dict[str, any] = {}  
         self.graph: Dict[str, Dict[str, int]] = {}  
@@ -49,19 +51,22 @@ class node:
                                 
                                 self.neighbours[neighbour_id] = {'cost': float(cost), 'port': int(port)}
 
-                                self.graph[self.node_ID] = {neighbour_id: float(cost)}  
+                                if self.node_ID in self.graph:
+                                    self.graph[self.node_ID][neighbour_id] = float(cost)
+                                else:
+                                    self.graph[self.node_ID] = {neighbour_id: float(cost)}
                             except ValueError:
                                 print(f"Error: Invalid configuration file format. (Each neighbour entry must have exactly three tokens; cost must be numeric.)")
-                                sys.exit(1)
+                                os._exit(1)
                         else:
                             print(f"Error: Invalid configuration file format.")
-                            sys.exit(1)
+                            os._exit(1)
                     except ValueError:
                         print(f"Error: Invalid configuration file format. (First line must be an integer.)")
 
         except FileNotFoundError:
             print(f"Error: Configuration file '{config_file}' not found.")
-            sys.exit(1)
+            os._exit(1)
 
     '''
     Updates the nodes knowledge of the graph with the new information received from the neighbours. This will be used to update the routing table.

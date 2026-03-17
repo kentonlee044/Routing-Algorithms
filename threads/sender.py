@@ -22,18 +22,28 @@ class sender(threading.Thread):
         '''
 
         self.node.connect_to_neighbours()
+
         while True:
             time.sleep(self.SENDER_INTERVAL)
-            if self.changed_update_packet:
-                self.send_to_neighbours()
-                self.send_to_STDOUT()
-                self.changed_update_packet = False
+            with self.node.update_lock:
+                if self.node.has_new_update and self.node.last_update_command:
+                    self.relay(self.node.last_update_command)
+                    self.node.has_new_update = False
 
-    def send_to_STDOUT(self):
-        '''
-        - Keep formatting of the update exactly the same as the update packet and what the listener receives
-        '''
-        pass
+    '''
+    Relays an update packet to the neighbours through sockets and through STDOUT
+    '''
+    def relay(self, message: str) -> None:
+        for neighbour_id, sock in self.node.neighbour_sockets.items():
+            
+            # Output to STDOUT
+            print(message)
+            
+            # Output to neighbour sockets
+            try:
+                sock.sendall(message.encode())
+                print(f"sent to neighbour {neighbour_id}")
 
-    def send_to_neighbours(self):
-        pass
+            except Exception as e:
+                print(f"Error sending update packet to neighbour {neighbour_id}: {e}")
+        
