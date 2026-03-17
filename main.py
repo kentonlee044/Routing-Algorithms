@@ -2,6 +2,7 @@ from threads import listener, routing_calculations, sender
 import node
 import threading
 import sys
+import time
 
 def main():
 
@@ -15,10 +16,26 @@ def main():
 
     # Read CLI arguments
     if len(sys.argv) != 6:
-        print("Use format: ./Routing.sh <Node-ID> <Port-Number> <Config-File> <Routing-Delay> <UpdateInterval>")
+        print("Error: Insufficient arguments provided. Usage: ./Routing.sh <Node-ID> <Port-NO> <Node-Config-File>")
         sys.exit(1)
 
     node_id, Port_NO, config_file, routing_delay, update_interval = sys.argv[1], int(sys.argv[2]), sys.argv[3], int(sys.argv[4]), int(sys.argv[5])
+
+    # Check valid Node-ID
+    if len(node_id) != 1 or not node_id.isalpha() or not node_id.isupper():
+        print("Error: Invalid Node-ID")
+        sys.exit(1)
+
+    # Check valid port number
+    try:
+        Port_NO = int(Port_NO)
+        if Port_NO < 6000:
+            raise ValueError
+        
+    except ValueError:
+        print("Error: Invalid Port number. Must be an integer.")
+        sys.exit(1)
+    
 
     # Assign constants to respective classes
     if routing_delay <= 0 or update_interval <= 0:
@@ -26,25 +43,19 @@ def main():
     
     routing_calculations.routing_calculations.ROUTING_DELAY = routing_delay
     sender.sender.SENDER_INTERVAL = update_interval
-    print(f"Routing Delay from routing thread: {routing_calculations.routing_calculations.ROUTING_DELAY}") 
-    print(f"Sender_interval from send thread: {sender.sender.SENDER_INTERVAL}")
 
     try:
         print("")
         # Create node object
         node_obj = node.node(node_id, Port_NO, config_file)
-        print("Node object created successfully.")
         node_obj.parse_config_file(config_file)
         # Create server socket for the node
         node_obj.create_socket()
 
         # Create threads
         listener_thread = listener.listener(node_obj)
-        print("Listener thread created successfully.")
         routing_thread = routing_calculations.routing_calculations(node_obj)
-        print("Routing thread created successfully.")
         sender_thread = sender.sender(node_obj)
-        print("Sender thread created successfully.")
         print("")
 
     except Exception as e:
@@ -53,15 +64,17 @@ def main():
         sys.exit(1)
 
     # Start threads
-    print("Starting threads...\n")
     listener_thread.start()
     routing_thread.start()
     sender_thread.start()
 
-    # Wait for threads to finish 
-    listener_thread.join()
-    routing_thread.join()
-    sender_thread.join()
+    try:
+        while True:
+            time.sleep(1)
+            
+    except KeyboardInterrupt:
+        print("Exiting program...")
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()

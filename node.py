@@ -1,9 +1,10 @@
 from typing import List, Dict
 import time
-import error
 import socket
+import queue
+import sys
 
-class node: # TODO Add locks to shareddata structure to avoid race conditions
+class node: 
     
     '''
     - self.socket: The socket object that the other nodes will use to contact this node
@@ -19,6 +20,9 @@ class node: # TODO Add locks to shareddata structure to avoid race conditions
         self.server_socket = None  
         self.firstCall = True
         self.num_neighbours: int = 0
+        self.queue = queue.Queue()  # thread safe queue for communication between threads
+        self.last_command: str = None
+        self.has_new_update: bool = False
         self.neighbours: Dict[str, Dict[str, int]] = {}
         self.neighbour_sockets: Dict[str, any] = {}  
         self.graph: Dict[str, Dict[str, int]] = {}  
@@ -28,27 +32,36 @@ class node: # TODO Add locks to shareddata structure to avoid race conditions
     Parse the config file and populate self.neighbours with the neighbour ID as the key and a dictionary containing the cost and port number as the value. Also update self.num_neighbours to reflect the number of neighbours this node has.
     '''
     def parse_config_file(self, config_file: str) -> None:
-        with open(config_file, 'r') as file:
-            for line in file:
-                parts = line.strip().split()
-                if len(line.strip()) == 1 and int(line):
-                    self.num_neighbours = int(line)
+        try:
+            with open(config_file, 'r') as file:
+                for line in file:
+                    parts = line.strip().split()
+                    try:
+                        if len(line.strip()) == 1 and int(line):
+                            self.num_neighbours = int(line)
+                        
+                        elif len(parts) == 3:
+                            neighbour_id, cost, port = parts
+                            
+                            try:
+                                if float(cost) <= 0:    
+                                    raise ValueError
+                                
+                                self.neighbours[neighbour_id] = {'cost': float(cost), 'port': int(port)}
 
-                elif len(parts) == 3:
-                    neighbour_id, cost, port = parts
-                    if float(cost) <= 0:
-                        raise error.InvalidConfigFileError(f"Cost must be a positive integer in config file: {line}")
-                    elif int(port) < 6000:
-                        raise error.InvalidConfigFileError(f"Port number must be greater than 6000 in config file: {line}")
-                    
-                    self.neighbours[neighbour_id] = {'cost': float(cost), 'port': int(port)}
-                    
-                else:
-                    raise error.InvalidConfigFileError(f"Invalid line in config file: {line}")
-        
-        print("Neighbours")
-        print(self.neighbours)
-        print()
+                                self.graph[self.node_ID] = {neighbour_id: float(cost)}  
+                            except ValueError:
+                                print(f"Error: Invalid configuration file format. (Each neighbour entry must have exactly three tokens; cost must be numeric.)")
+                                sys.exit(1)
+                        else:
+                            print(f"Error: Invalid configuration file format.")
+                            sys.exit(1)
+                    except ValueError:
+                        print(f"Error: Invalid configuration file format. (First line must be an integer.)")
+
+        except FileNotFoundError:
+            print(f"Error: Configuration file '{config_file}' not found.")
+            sys.exit(1)
 
     '''
     Updates the nodes knowledge of the graph with the new information received from the neighbours. This will be used to update the routing table.
@@ -79,8 +92,8 @@ class node: # TODO Add locks to shareddata structure to avoid race conditions
 
                     except Exception as e:
                         print(f"Error connecting to neighbour {neighbour_id} at port {info['port']}: {e}")
-                        print("Retrying in 3 seconds...")
-                        time.sleep(3)
+                        print("Retrying in 5 seconds...")
+                        time.sleep(5)
 
     '''
     Accept incoming connections from neighbour nodes and add the socket to self.neighbour_sockets
@@ -92,6 +105,10 @@ class node: # TODO Add locks to shareddata structure to avoid race conditions
                 node_id = conn.recv(1024).decode()
                 self.neighbour_sockets[node_id] = conn
                 print(f"Connected to neighbour {node_id} at {addr}")
+                print(f"Connected neighbours {self.node_ID}: {len(self.neighbour_sockets)}/{self.num_neighbours}")
+
+            except socket.timeout:
+                continue
 
             except Exception as e:
                 print(f"Error accepting connection: {e}")
