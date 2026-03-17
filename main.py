@@ -1,7 +1,7 @@
 from threads import listener, routing_calculations, sender
 import node
 import threading
-import sys
+import sys, os
 import time
 
 def main():
@@ -17,14 +17,14 @@ def main():
     # Read CLI arguments
     if len(sys.argv) != 6:
         print("Error: Insufficient arguments provided. Usage: ./Routing.sh <Node-ID> <Port-NO> <Node-Config-File>")
-        sys.exit(1)
+        os._exit(1)
 
     node_id, Port_NO, config_file, routing_delay, update_interval = sys.argv[1], int(sys.argv[2]), sys.argv[3], int(sys.argv[4]), int(sys.argv[5])
 
     # Check valid Node-ID
     if len(node_id) != 1 or not node_id.isalpha() or not node_id.isupper():
         print("Error: Invalid Node-ID")
-        sys.exit(1)
+        os._exit(1)
 
     # Check valid port number
     try:
@@ -34,7 +34,7 @@ def main():
         
     except ValueError:
         print("Error: Invalid Port number. Must be an integer.")
-        sys.exit(1)
+        os._exit(1)
     
 
     # Assign constants to respective classes
@@ -61,7 +61,7 @@ def main():
     except Exception as e:
         
         print(f"Error: {e}")
-        sys.exit(1)
+        os._exit(1)
 
     # Start threads
     listener_thread.start()
@@ -74,7 +74,7 @@ def main():
             
     except KeyboardInterrupt:
         print("Exiting program...")
-        sys.exit(0)
+        os._exit(0)
 
 if __name__ == "__main__":
     main()
