@@ -22,13 +22,14 @@ class node:
         self.firstCall = True
         self.num_neighbours: int = 0
         self.queue = queue.Queue()  # thread safe queue for communication between threads
+        self.last_update_sender = None
         self.last_update_command: str = None
         self.has_new_update: bool = False
         self.update_lock = threading.Lock()
         self.neighbours: Dict[str, Dict[str, int]] = {}
         self.neighbour_sockets: Dict[str, any] = {}  
         self.graph: Dict[str, Dict[str, int]] = {}  
-        self.routing_table: Dict[str, Dict[str, int]] = {}  
+        self.routing_table: Dict[str, Dict] = {}  
 
     '''
     Parse the config file and populate self.neighbours with the neighbour ID as the key and a dictionary containing the cost and port number as the value. Also update self.num_neighbours to reflect the number of neighbours this node has.
@@ -93,7 +94,7 @@ class node:
                         client_sock.connect(('localhost', info['port']))
                         client_sock.sendall(self.node_ID.encode())
                         self.neighbour_sockets[neighbour_id] = client_sock
-                        print(f"Connected to neighbour {neighbour_id} at port {info['port']}")
+                        # print(f"Connected to neighbour {neighbour_id} at port {info['port']}")
 
                     except Exception as e:
                         print(f"Error connecting to neighbour {neighbour_id} at port {info['port']}: {e}")
@@ -109,8 +110,8 @@ class node:
                 conn, addr = self.server_socket.accept()
                 node_id = conn.recv(1024).decode()
                 self.neighbour_sockets[node_id] = conn
-                print(f"Connected to neighbour {node_id} at {addr}")
-                print(f"Connected neighbours {self.node_ID}: {len(self.neighbour_sockets)}/{self.num_neighbours}")
+                # print(f"Connected to neighbour {node_id} at {addr}")
+                # print(f"Connected neighbours {self.node_ID}: {len(self.neighbour_sockets)}/{self.num_neighbours}")
 
             except socket.timeout:
                 continue

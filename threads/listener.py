@@ -20,7 +20,6 @@ class listener(threading.Thread):
     '''
     def run(self):
         
-        print("Listener thread started successfully.")
         self.node.server_socket.settimeout(1) 
         self.node.accept_connections()
 
@@ -37,12 +36,13 @@ class listener(threading.Thread):
                         self.handle_stdin(line)
                 
                 # Receive messages from neighbour sockets
+                # message here is the socket object
                 else:
                     try:
-                            
+                        
                         data = message.recv(1024).decode().strip()
                         if data:
-                            self.handle_packet(data)
+                            self.handle_packet(data, message)
                             
                         else:
                             print("ERROR: Neighbour socket closed.")
@@ -82,18 +82,27 @@ class listener(threading.Thread):
     '''
     Handle update packets from other nodes by reading data and updating the graph accordingly. A sending thread only sends packets to their direct neighbours so no need to continue forwarding this
     '''
-    def handle_packet(self, packet: str) -> None:
+    def handle_packet(self, packet: str, sender_socket) -> None:
         # TODO add error handling
+        message_lines = packet.split("\n")
 
-        if len(packet) < 2: # incorrect error handle 
-            print(f"Error: Invalid packet format.")
-            return
-        print(f"Received packet from socket: {packet}")
-        separated_data = packet.split(" ", 1)
-        command = separated_data[0]
-        args = separated_data[1] 
+        for line in message_lines:
+            line = line.strip()
+            print(f"Received packet: {line}")
+            if not line:
+                continue
 
-        if command != "UPDATE":
-            print(f"Error: Invalid update packet format.")
-            return
-        UpdateCommand(self.node).execute(args)
+            separated_data = line.split(" ", 1)
+            command = separated_data[0]
+            args = separated_data[1] 
+
+            if command != "UPDATE":
+                print(f"Error: Invalid update packet format.")
+                return
+            UpdateCommand(self.node).execute(args)
+
+            with self.node.update_lock:
+                if self.node.last_update_command != packet:
+                    self.node.last_update_command = packet
+                    self.node.has_new_update = True
+                    self.node.last_update_sender = sender_socket
