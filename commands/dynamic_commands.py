@@ -20,19 +20,19 @@ class UpdateCommand(Command):
 
     def execute(self, args: str) -> None:
         
-        print(f"Executing UPDATE command with arguments: {args}")
-        
         separated_data = args.split(" ", 1)
         source_node = separated_data[0]
         params = separated_data[1] 
         
-        print(f"\nBefore update: {self.node.graph}")
         self.update_neighbours(source_node, params)
-        print(f"After update: {self.node.graph}")
+        # print(f"After update: {self.node.graph}")
 
         # Signal routing thread
         self.node.queue.put(("UPDATE", source_node, params))
     
+    '''
+    Helper function of execute()
+    '''
     def update_neighbours(self, source_node: str, params: str) -> None:
         
         params_list = params.split(",")

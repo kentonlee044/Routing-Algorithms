@@ -14,7 +14,6 @@ class sender(threading.Thread):
     Calls self.node.connect_to_neighbours() to connect to the neighbours
     '''
     def run(self):
-        print("Sender thread started successfully.")
         '''
         2. in a while loop run the below
         3. check for sender_interval 
@@ -34,15 +33,25 @@ class sender(threading.Thread):
     Relays an update packet to the neighbours through sockets and through STDOUT
     '''
     def relay(self, message: str) -> None:
+        
+        # Pass on the update packet with the source node's neighbours
+        source_neighbours = ",".join(
+            [f"{neighbour_id}:{info['cost']}:{info['port']}" for neighbour_id, info in self.node.neighbours.items()]
+        )
+        extra_update = f"UPDATE {self.node.node_ID} {source_neighbours}"
+        full_message = f"{message}\n{extra_update}"
+
         for neighbour_id, sock in self.node.neighbour_sockets.items():
-            
+            # Don't send the update packet back to the sender
+            if sock == self.node.last_update_sender:
+                continue
+
             # Output to STDOUT
             print(message)
             
             # Output to neighbour sockets
             try:
-                sock.sendall(message.encode())
-                print(f"sent to neighbour {neighbour_id}")
+                sock.sendall(full_message.encode())
 
             except Exception as e:
                 print(f"Error sending update packet to neighbour {neighbour_id}: {e}")
