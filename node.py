@@ -70,18 +70,6 @@ class node:
             os._exit(1)
 
     '''
-    Updates the nodes knowledge of the graph with the new information received from the neighbours. This will be used to update the routing table.
-    '''
-    def update_graph(self) -> None:
-        pass
-
-    ''' 
-    Updates the routing table for the node
-    '''
-    def update_routing_table(self) -> None:
-        pass
-
-    '''
     Try to connect to neighbours from self.neighbours and add the socket to self.neighbour_sockets. On failure wait a bit and try again.
     '''
     def connect_to_neighbours(self) -> None:
@@ -130,10 +118,8 @@ class node:
             self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.server_socket.bind(('', self.Port_NO))
             self.server_socket.listen()
-            print(f"Socket created and listening on port {self.Port_NO}")
+            # print(f"Socket created and listening on port {self.Port_NO}")
 
         except Exception as e:
             print(f"Error creating socket: {e}")
 
-    def update_neighbours(self):
-        pass

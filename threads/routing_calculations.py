@@ -27,7 +27,7 @@ class routing_calculations(threading.Thread):
             if self.node.routing_table != old_table:
                 # print("changes found")
                 self.print_routing_table()
-                
+                    
     '''
     Use self.node.graph to compute the shortest path from the source_node to every other node in self.node.graph
     '''
@@ -77,7 +77,8 @@ class routing_calculations(threading.Thread):
     '''
     def populate_routing_table(self, distances: dict, previous_nodes: dict) -> None:
         source = self.node.node_ID
-
+        self.node.routing_table = {}  # Clear existing routing table before populating new entries
+        
         for destination in distances:
             
             # skip unreachable nodes
@@ -102,6 +103,6 @@ class routing_calculations(threading.Thread):
             }
 
     def print_routing_table(self):
-        print(f"I am Node {self.node.node_ID}")
+        print(f"I am Node {self.node.node_ID}", flush=True)
         for destination, data in sorted(self.node.routing_table.items()):
-            print(f"Least cost path from {self.node.node_ID} to {destination}: {data['path']}, link cost: {data['cost']}")
+            print(f"Least cost path from {self.node.node_ID} to {destination}: {data['path']}, link cost: {data['cost']}", flush=True)

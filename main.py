@@ -6,20 +6,12 @@ import time
 
 def main():
 
-    '''
-    1. Read CLI arguments
-    2. create node object (so the threads share the memory of the sockets)
-    3. Create listener, sender, routing threads
-
-    Input format - ./Routing.sh <Node-ID> <Port-Number> <Config-File> <Routing-Delay> <UpdateInterval>
-    '''
-
     # Read CLI arguments
     if len(sys.argv) != 6:
-        print("Error: Insufficient arguments provided. Usage: ./Routing.sh <Node-ID> <Port-NO> <Node-Config-File>")
+        print("Error: Insufficient arguments provided. Usage: ./Routing.sh <Node-ID> <Port-NO> <Node-Config-File> <RoutingDelay> <UpdateInterval>")
         os._exit(1)
 
-    node_id, Port_NO, config_file, routing_delay, update_interval = sys.argv[1], int(sys.argv[2]), sys.argv[3], int(sys.argv[4]), int(sys.argv[5])
+    node_id, Port_NO, config_file, routing_delay, update_interval = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4]), int(sys.argv[5])
 
     # Check valid Node-ID
     if len(node_id) != 1 or not node_id.isalpha() or not node_id.isupper():
@@ -29,8 +21,6 @@ def main():
     # Check valid port number
     try:
         Port_NO = int(Port_NO)
-        if Port_NO < 6000:
-            raise ValueError
         
     except ValueError:
         print("Error: Invalid Port number. Must be an integer.")
@@ -45,7 +35,6 @@ def main():
     sender.sender.SENDER_INTERVAL = update_interval
 
     try:
-        print("")
         # Create node object
         node_obj = node.node(node_id, Port_NO, config_file)
         node_obj.parse_config_file(config_file)
@@ -56,7 +45,6 @@ def main():
         listener_thread = listener.listener(node_obj)
         routing_thread = routing_calculations.routing_calculations(node_obj)
         sender_thread = sender.sender(node_obj)
-        print("")
 
     except Exception as e:
         
