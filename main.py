@@ -11,7 +11,7 @@ def main():
         print("Error: Insufficient arguments provided. Usage: ./Routing.sh <Node-ID> <Port-NO> <Node-Config-File> <RoutingDelay> <UpdateInterval>")
         os._exit(1)
 
-    node_id, Port_NO, config_file, routing_delay, update_interval = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4]), int(sys.argv[5])
+    node_id, Port_NO, config_file, routing_delay, update_interval = sys.argv[1], sys.argv[2], sys.argv[3], float(sys.argv[4]), float(sys.argv[5])
 
     # Check valid Node-ID
     if len(node_id) != 1 or not node_id.isalpha() or not node_id.isupper():
