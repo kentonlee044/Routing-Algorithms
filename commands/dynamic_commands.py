@@ -24,16 +24,13 @@ class UpdateCommand(Command):
         source_node = separated_data[0]
         params = separated_data[1] 
         
-        self.update_neighbours(source_node, params)
+        self._update_neighbours(source_node, params)
         # print(f"After update: {self.node.graph}")
-
-        # Signal routing thread
-        self.node.queue.put(("UPDATE", source_node, params))
     
     '''
     Helper function of execute()
     '''
-    def update_neighbours(self, source_node: str, params: str) -> None:
+    def _update_neighbours(self, source_node: str, params: str) -> None:
         
         params_list = params.split(",")
 
@@ -51,7 +48,18 @@ class ChangeCommand(Command):
 
     def execute(self, args: str) -> None:
         print(f"Executing CHANGE command with arguments: {args}")
-        # TODO implement logic for CHANGE command
+        separated_data = args.split(" ", 1)
+        source_node = separated_data[0]
+        cost = separated_data[1] 
+
+        self._update_neighbours(source_node, cost)
+    
+    def _update_neighbours(self, source_node: str, cost: str) -> None:
+        if source_node in self.node.graph:
+            for neighbour in self.node.graph[source_node]:
+                self.node.graph[source_node][neighbour] = float(cost)
+        else:
+            print(f"Error: Node {source_node} not found in graph.")
 
 class FailCommand(Command):
     

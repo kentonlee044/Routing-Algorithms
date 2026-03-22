@@ -3,6 +3,7 @@ import node
 import select
 import sys, os
 import time
+import copy
 from commands.command_types import command_types
 from commands.dynamic_commands import UpdateCommand, ChangeCommand, FailCommand, RecoverCommand, QueryCommand, QueryPathCommand, ResetCommand, BatchUpdateCommand
 
@@ -21,7 +22,8 @@ class listener(threading.Thread):
     def run(self):
         
         self.node.server_socket.settimeout(1) 
-        self.node.accept_connections()
+        # self.node.accept_connections()
+        self.node.connections_ready.wait()  # Wait until connections are ready
 
         while True:
             listen_list = list(self.node.neighbour_sockets.values())
@@ -42,6 +44,7 @@ class listener(threading.Thread):
                         
                         data = message.recv(1024).decode().strip()
                         if data:
+                            print(f"DEBUG: Received data from neighbour socket {message.getsockname()}: {data}")
                             self.handle_packet(data, message)
                             
                         else:
@@ -67,13 +70,15 @@ class listener(threading.Thread):
 
         get_command = command_types.get(command)
         if get_command:
+            old_graph = copy.deepcopy(self.node.graph)
             get_command(self.node).execute(args)
-            if command == "UPDATE":
-                with self.node.update_lock:
-                    if self.node.last_update_command != data:
-                        self.node.last_update_command = data
-                        self.node.has_new_update = True
-        
+            self.node.queue.put((command, args))    # Signal routing thread
+            
+            with self.node.update_lock:
+                if self.node.graph != old_graph:
+                    # If there are changes signal the sender thread to send an update packet to the neighbours
+                    self.node.has_new_update = True
+    
         else:
             # TODO need to setup error handling for each command type
             print(f"Invalid command: {command}")
@@ -84,25 +89,24 @@ class listener(threading.Thread):
     '''
     def handle_packet(self, packet: str, sender_socket) -> None:
         # TODO add error handling
-        message_lines = packet.split("\n")
+        line = packet.strip()
+        print(f"Received packet: {line}")
 
-        for line in message_lines:
-            line = line.strip()
-            print(f"Received packet: {line}")
-            if not line:
-                continue
+        if not line: 
+            print(f"Error: Empty packet received.")
+            os._exit(1)
 
-            separated_data = line.split(" ", 1)
-            command = separated_data[0]
-            args = separated_data[1] 
+        separated_data = line.split(" ", 1)
+        command = separated_data[0]
+        args = separated_data[1] 
 
-            if command != "UPDATE":
-                print(f"Error: Invalid update packet format.")
-                return
-            UpdateCommand(self.node).execute(args)
+        if command != "UPDATE":
+            print(f"Error: Invalid update packet format.")
+            return
+        old_graph = copy.deepcopy(self.node.graph)
+        UpdateCommand(self.node).execute(args)
 
-            with self.node.update_lock:
-                if self.node.last_update_command != packet:
-                    self.node.last_update_command = packet
-                    self.node.has_new_update = True
-                    self.node.last_update_sender = sender_socket
+        with self.node.update_lock:
+            if self.node.graph != old_graph:
+                self.node.has_new_update = True
+                

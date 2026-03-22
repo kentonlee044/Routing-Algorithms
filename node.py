@@ -22,14 +22,13 @@ class node:
         self.firstCall = True
         self.num_neighbours: int = 0
         self.queue = queue.Queue()  # thread safe queue for communication between threads
-        self.last_update_sender = None
-        self.last_update_command: str = None
         self.has_new_update: bool = False
         self.update_lock = threading.Lock()
         self.neighbours: Dict[str, Dict[str, int]] = {}
         self.neighbour_sockets: Dict[str, any] = {}  
         self.graph: Dict[str, Dict[str, int]] = {}  
         self.routing_table: Dict[str, Dict] = {}  
+        self.connections_ready = threading.Event()  
 
     '''
     Parse the config file and populate self.neighbours with the neighbour ID as the key and a dictionary containing the cost and port number as the value. Also update self.num_neighbours to reflect the number of neighbours this node has.
@@ -86,27 +85,41 @@ class node:
 
                     except Exception as e:
                         print(f"Error connecting to neighbour {neighbour_id} at port {info['port']}: {e}")
-                        print("Retrying in 5 seconds...")
-                        time.sleep(5)
+                        time.sleep(1)
 
     '''
     Accept incoming connections from neighbour nodes and add the socket to self.neighbour_sockets
     '''
     def accept_connections(self) -> None:
-        while len(self.neighbour_sockets) < self.num_neighbours:
+        
+        threads = []
+        connections_to_accept = len([n for n in self.neighbours if n < self.node_ID])  # Only accept connections from neighbours with smaller IDs
+        while len(threads) < connections_to_accept:
             try:
                 conn, addr = self.server_socket.accept()
-                node_id = conn.recv(1024).decode()
-                self.neighbour_sockets[node_id] = conn
-                # print(f"Connected to neighbour {node_id} at {addr}")
-                # print(f"Connected neighbours {self.node_ID}: {len(self.neighbour_sockets)}/{self.num_neighbours}")
-
+                t = threading.Thread(target=self._assign_connection, args=(conn,))
+                threads.append(t)
+                t.start()
+                
             except socket.timeout:
                 continue
 
             except Exception as e:
                 print(f"Error accepting connection: {e}")
                 time.sleep(1)
+        for t in threads:
+            t.join()
+    '''
+    Create new thread for each connection so it doesn't block the accepting of other connections
+    '''
+    def _assign_connection(self, conn):
+        try:
+            node_id = conn.recv(1024).decode()
+            if node_id and node_id not in self.neighbour_sockets:
+                self.neighbour_sockets[node_id] = conn
+            
+        except Exception as e:
+            print(f"Error assigning connection: {e}")
 
     '''
     address holds the neighbours (IP, port) and the socket is the socket object that the node will use to contact the neighbour. 
