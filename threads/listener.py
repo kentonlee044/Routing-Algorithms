@@ -13,12 +13,6 @@ class listener(threading.Thread):
         super().__init__()
         self.node = node
 
-    '''
-    Thread should be running over this function listening for input and calling handle_update() before calling forward_update() to send the update packets to the routing calculations thread
-    - Needs to call node's function to listen for updates from the neighbours and update the graph accordingly
-    - also needs to call node's functions to 
-    - needs to call accept_neighbours()
-    '''
     def run(self):
         
         self.node.server_socket.settimeout(1) 
@@ -38,21 +32,18 @@ class listener(threading.Thread):
                         self.handle_stdin(line)
                 
                 # Receive messages from neighbour sockets
-                # message here is the socket object
                 else:
                     try:
                         
                         data = message.recv(1024).decode().strip()
                         if data:
-                            print(f"DEBUG: Received data from neighbour socket {message.getsockname()}: {data}")
-                            self.handle_packet(data, message)
+                            self.handle_packet(data)
                             
                         else:
-                            print("ERROR: Neighbour socket closed.")
-                            time.sleep(5)
+                            time.sleep(1)
+
                     except Exception as e:
-                        print(f"Error receiving from neighbour socket: {e}")
-                        time.sleep(3)
+                        time.sleep(1)
 
     '''
     Takes in the command from STDIN and compares the command to the expected command and computes expected outcome
@@ -63,7 +54,7 @@ class listener(threading.Thread):
         separated_data = data.split(" ", 1)
         command = separated_data[0]
         if len(separated_data) < 2:
-            print(f"Invalid command: {data}")
+            print(f"Error: Invalid command format: Missing data")
             os._exit(1)
 
         args = separated_data[1]
@@ -80,17 +71,14 @@ class listener(threading.Thread):
                     self.node.has_new_update = True
     
         else:
-            # TODO need to setup error handling for each command type
-            print(f"Invalid command: {command}")
+            print("Error: Invalid command.")
             os._exit(1)
 
     '''
     Handle update packets from other nodes by reading data and updating the graph accordingly. A sending thread only sends packets to their direct neighbours so no need to continue forwarding this
     '''
-    def handle_packet(self, packet: str, sender_socket) -> None:
-        # TODO add error handling
+    def handle_packet(self, packet: str) -> None:
         line = packet.strip()
-        print(f"Received packet: {line}")
 
         if not line: 
             print(f"Error: Empty packet received.")
@@ -100,13 +88,20 @@ class listener(threading.Thread):
         command = separated_data[0]
         args = separated_data[1] 
 
+        source_node = args.split(" ")[0]
+        if source_node in self.node.failed_nodes:
+            return
+
         if command != "UPDATE":
             print(f"Error: Invalid update packet format.")
-            return
-        old_graph = copy.deepcopy(self.node.graph)
+            os._exit(1)
+        old_source_edges = copy.deepcopy(self.node.graph.get(self.node.node_ID, {}))
         UpdateCommand(self.node).execute(args)
 
         with self.node.update_lock:
-            if self.node.graph != old_graph:
+            # only compare for differences between the source node since update packets only contain immediate neighbours
+            new_source_edges = self.node.graph.get(self.node.node_ID, {})
+            if new_source_edges != old_source_edges:
                 self.node.has_new_update = True
+                self.node.queue.put(("UPDATE", args))
                 

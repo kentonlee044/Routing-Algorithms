@@ -29,6 +29,9 @@ class node:
         self.graph: Dict[str, Dict[str, int]] = {}  
         self.routing_table: Dict[str, Dict] = {}  
         self.connections_ready = threading.Event()  
+        self.failed_nodes = set()
+        self.is_down = False
+        self.initial_routing_printed = threading.Event()
 
     '''
     Parse the config file and populate self.neighbours with the neighbour ID as the key and a dictionary containing the cost and port number as the value. Also update self.num_neighbours to reflect the number of neighbours this node has.
@@ -81,10 +84,8 @@ class node:
                         client_sock.connect(('localhost', info['port']))
                         client_sock.sendall(self.node_ID.encode())
                         self.neighbour_sockets[neighbour_id] = client_sock
-                        # print(f"Connected to neighbour {neighbour_id} at port {info['port']}")
-
+                        
                     except Exception as e:
-                        print(f"Error connecting to neighbour {neighbour_id} at port {info['port']}: {e}")
                         time.sleep(1)
 
     '''
