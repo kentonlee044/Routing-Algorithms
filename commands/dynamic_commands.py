@@ -1,10 +1,7 @@
 from abc import ABC, abstractmethod
 import os
-'''
-- Define command functions here and define the logic of what each function does
-- Create dictionary of type CommandType.command: functionPointer
-'''
 
+# TODO add error handling for missing and extra tokens
 class Command(ABC):
 
     def __init__(self, node):
@@ -26,6 +23,7 @@ class UpdateCommand(Command):
         params = separated_data[1] 
         
         self._update_neighbours(source_node, params)
+        print(self.node.graph)
     
     '''
     Helper function of execute()
@@ -124,8 +122,20 @@ class QueryCommand(Command):
         super().__init__(node)
 
     def execute(self, args: str) -> None:
-        print(f"Executing QUERY command with arguments: {args}")
-        # TODO implement logic for QUERY command
+        destination = args.strip()
+        self._check_valid_args(destination)
+
+        # if destination not in self.node.routing_table:
+        #     print(f"No path from {self.node.node_ID} to {destination} found.")
+        #     return
+        
+        data = self.node.routing_table[destination]
+        print(f"Least cost path from {self.node.node_ID} to {destination}: {data['path']}, link cost: {data['cost']}")
+    
+    def _check_valid_args(self, args):
+        if len(args) != 1 :
+            print("Error: Invalid command format. Expected a valid Destination.")
+            os._exit(1)
 
 class QueryPathCommand(Command):
 
@@ -133,8 +143,43 @@ class QueryPathCommand(Command):
         super().__init__(node)
 
     def execute(self, args: str) -> None:
-        print(f"Executing QUERY PATH command with arguments: {args}")
-        # TODO implement logic for QUERY PATH command
+        self._check_valid_args(args.strip())
+        source_node, destination_node = args.strip().split(" ")
+        distances, previous = self.node.routing_thread.dijkstra(source_node)
+        path = self._get_path(distances, previous, destination_node)
+        print(f"Least cost path from {source_node} to {destination_node}: {path}, link cost: {distances[destination_node]}")
+
+    def _check_valid_args(self, args):
+        parts = args.split(" ")
+        if len(parts) != 2:
+            print("Error: Invalid command format. Expected two valid identifiers for Source and Destination.")
+            os._exit(1)
+        if not parts[0].isalpha() or not parts[0].isupper() or len(parts[0]) != 1:
+            print("Error: Invalid command format. Expected valid Node-ID for Source.")
+            os._exit(1)
+        
+        if not parts[1].isalpha() or not parts[1].isupper() or len(parts[1]) != 1:
+            print("Error: Invalid command format. Expected valid Node-ID for Destination.")
+            os._exit(1)
+
+        # if parts[0] not in self.node.routing_table:
+        #     print(f"No path from {parts[0]} to {parts[1]} found.")
+        #     return
+
+        # if parts[1] not in self.node.routing_table:
+        #     print(f"No path from {parts[0]} to {parts[1]} found.")
+        #     return
+        
+    def _get_path(self, distances, previous_nodes, destination):
+        if distances[destination] == float('inf'):
+            return None
+        path = []
+        current = destination
+        while current is not None:
+            path.append(current)
+            current = previous_nodes[current]
+        path.reverse()
+        return "".join(path)
 
 class ResetCommand(Command):
 

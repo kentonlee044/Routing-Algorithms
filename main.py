@@ -45,6 +45,7 @@ def main():
         listener_thread = listener.listener(node_obj)
         routing_thread = routing_calculations.routing_calculations(node_obj)
         sender_thread = sender.sender(node_obj)
+        node_obj.routing_thread = routing_thread
 
     except Exception as e:
         

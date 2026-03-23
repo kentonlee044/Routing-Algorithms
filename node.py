@@ -32,6 +32,7 @@ class node:
         self.failed_nodes = set()
         self.is_down = False
         self.initial_routing_printed = threading.Event()
+        self.routing_thread = None
 
     '''
     Parse the config file and populate self.neighbours with the neighbour ID as the key and a dictionary containing the cost and port number as the value. Also update self.num_neighbours to reflect the number of neighbours this node has.

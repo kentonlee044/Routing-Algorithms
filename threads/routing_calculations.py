@@ -14,7 +14,8 @@ class routing_calculations(threading.Thread):
     def run(self):
         # Initial computation and printing of the routing table based on the initial graph after delay
         time.sleep(self.ROUTING_DELAY)  
-        self.dijkstra()  
+        distances, previous_nodes = self.dijkstra()  
+        self.populate_routing_table(distances, previous_nodes)
         self.print_routing_table()
         self.node.initial_routing_printed.set()  
         
@@ -22,7 +23,8 @@ class routing_calculations(threading.Thread):
             # Blocking call, waits for an event from the listener thread
             event = self.node.queue.get()  
             old_table = copy.deepcopy(self.node.routing_table)  
-            self.dijkstra()
+            distances, previous_nodes = self.dijkstra()  
+            self.populate_routing_table(distances, previous_nodes)
 
             # check for changes
             if self.node.routing_table != old_table:
@@ -32,8 +34,9 @@ class routing_calculations(threading.Thread):
     '''
     Use self.node.graph to compute the shortest path from the source_node to every other node in self.node.graph
     '''
-    def dijkstra(self):
-        source_node = self.node.node_ID
+    def dijkstra(self, node: str = None):
+        
+        source_node = self.node.node_ID if node is None else node
         
         # Add all nodes to the set
         nodes = set(self.node.graph.keys())
@@ -71,7 +74,7 @@ class routing_calculations(threading.Thread):
                     distances[neighbour] = new_distance
                     previous_nodes[neighbour] = current
         
-        self.populate_routing_table(distances, previous_nodes)
+        return distances, previous_nodes
 
     '''
     Helper function of dijkstra() 
