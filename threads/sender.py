@@ -14,24 +14,25 @@ class sender(threading.Thread):
     Calls self.node.connect_to_neighbours() to connect to the neighbours
     '''
     def run(self):
-        '''
-        2. in a while loop run the below
-        3. check for sender_interval 
-        4. check if there have been changes since the last update packet was sent, if there have been changes then send an update packet to the neighbours and print the packet to STDOUT and reset the changed_update_packet flag to False
-        '''
         accepting_thread = threading.Thread(target=self.node.accept_connections)
         accepting_thread.start()
         self.node.connect_to_neighbours()
         accepting_thread.join()
         self.node.connections_ready.set()  # Signal that connections are ready
-        self.node.has_new_update = True
+        self.node.initial_routing_printed.wait()
+        
+        with self.node.update_lock:
+            message = self.get_update_message()
+            self.relay(message)
 
         while True:
             time.sleep(self.SENDER_INTERVAL)
+            if self.node.is_down:
+                continue
+
             with self.node.update_lock:
                 if self.node.has_new_update:
                     message = self.get_update_message()
-                    print(f"DEBUG: {self.node.graph}")
                     self.relay(message)
                     self.node.has_new_update = False
 

@@ -16,6 +16,7 @@ class routing_calculations(threading.Thread):
         time.sleep(self.ROUTING_DELAY)  
         self.dijkstra()  
         self.print_routing_table()
+        self.node.initial_routing_printed.set()  
         
         while True:
             # Blocking call, waits for an event from the listener thread
